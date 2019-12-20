@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+if [[ -z "${rhasspymicrophone_cli_hermes_dir}" ]]; then
+    this_dir="$( cd "$( dirname "$0" )" && pwd )"
+    rhasspymicrophone_cli_hermes_dir="${this_dir}/../lib/rhasspymicrophone_cli_hermes"
+fi
+
+"${rhasspymicrophone_cli_hermes_dir}/rhasspymicrophone_cli_hermes" "$@"

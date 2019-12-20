@@ -1,0 +1,8 @@
+Package: rhasspy-microphone-cli-hermes
+Version: ${version}
+Section: utils
+Priority: optional
+Depends: alsa-utils
+Architecture: ${architecture}
+Maintainer: Michael Hansen
+Description: Hermes MQTT service for Rhasspy microphone recording
