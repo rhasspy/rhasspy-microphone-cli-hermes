@@ -1,5 +1,6 @@
-rhasspy-hermes==0.1.1
-paho-mqtt==1.5.0
+bashate==0.6.0
+black==19.10b0
 flake8==3.7.9
 pylint==2.4.4
 pyinstaller==3.5
+mypy==0.761
