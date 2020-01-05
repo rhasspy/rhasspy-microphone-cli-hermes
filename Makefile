@@ -19,6 +19,7 @@ check:
 	mypy $(PYTHON_FILES)
 	black --check .
 	bashate $(SHELL_FILES)
+	yamllint .
 	pip list --outdated
 
 venv:
