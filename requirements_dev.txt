@@ -4,3 +4,4 @@ flake8==3.7.9
 pylint==2.4.4
 pyinstaller==3.5
 mypy==0.761
+yamllint==1.20.0

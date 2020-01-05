@@ -1,3 +1,4 @@
+---
 name: Python package
 
 on: [push, pull_request]
@@ -5,27 +6,27 @@ on: [push, pull_request]
 jobs:
   build:
 
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 3
       matrix:
+        os: [ubuntu-18.04, macos-latest]
         python-version: [3.6, 3.7, 3.8]
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install wheel setuptools
-        pip install -r requirements.txt
-        pip install -r requirements_dev.txt
-    - name: Check code
-      run: |
-        make check
-    - name: Make dist
-      run: |
-        make dist
+      - uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install wheel setuptools
+          pip install -r requirements.txt
+          pip install -r requirements_dev.txt
+      - name: Check code
+        run: |
+          make check
+      - name: Make dist
+        run: |
+          make dist
