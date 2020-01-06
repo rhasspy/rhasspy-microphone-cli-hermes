@@ -20,6 +20,7 @@ check:
 	black --check .
 	bashate $(SHELL_FILES)
 	yamllint .
+	isort $(PYTHON_FILES)
 	pip list --outdated
 
 venv:
