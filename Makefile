@@ -1,4 +1,5 @@
 SHELL := bash
+PYTHON_FILES = rhasspymicrophone_cli_hermes/*.py setup.py
 
 .PHONY: check venv dist sdist pyinstaller debian docker
 
@@ -9,8 +10,12 @@ debian_package := rhasspy-microphone-cli-hermes_$(version)_$(architecture)
 debian_dir := debian/$(debian_package)
 
 check:
-	flake8 rhasspymicrophone_cli_hermes/*.py
-	pylint rhasspymicrophone_cli_hermes/*.py
+	flake8 $(PYTHON_FILES)
+	pylint $(PYTHON_FILES)
+	mypy $(PYTHON_FILES)
+	isort $(PYTHON_FILES)
+	black .
+	pip list --outdated
 
 venv:
 	rm -rf .venv/

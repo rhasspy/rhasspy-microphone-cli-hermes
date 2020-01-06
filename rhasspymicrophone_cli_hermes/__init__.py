@@ -2,9 +2,9 @@
 import io
 import logging
 import shlex
-import time
-import threading
 import subprocess
+import threading
+import time
 import wave
 
 from rhasspyhermes.audioserver import AudioFrame
