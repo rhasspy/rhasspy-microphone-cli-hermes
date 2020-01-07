@@ -2,7 +2,7 @@ SHELL := bash
 PYTHON_FILES = rhasspymicrophone_cli_hermes/*.py *.py
 SHELL_FILES = bin/* debian/bin/*
 
-.PHONY: black check venv dist sdist pyinstaller debian docker
+.PHONY: reformat check venv dist sdist pyinstaller debian docker
 
 version := $(shell cat VERSION)
 architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+=//')
