@@ -10,17 +10,18 @@ architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+
 debian_package := rhasspy-microphone-cli-hermes_$(version)_$(architecture)
 debian_dir := debian/$(debian_package)
 
-black:
+reformat:
 	black .
+	isort $(PYTHON_FILES)
 
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
 	mypy $(PYTHON_FILES)
 	black --check .
+	isort --check-only $(PYTHON_FILES)
 	bashate $(SHELL_FILES)
 	yamllint .
-	isort $(PYTHON_FILES)
 	pip list --outdated
 
 venv:
