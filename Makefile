@@ -1,7 +1,8 @@
 SHELL := bash
-PYTHON_FILES = rhasspymicrophone_cli_hermes/*.py setup.py
+PYTHON_FILES = rhasspymicrophone_cli_hermes/*.py *.py
+SHELL_FILES = bin/* debian/bin/*
 
-.PHONY: check venv dist sdist pyinstaller debian docker
+.PHONY: reformat check venv dist sdist pyinstaller debian docker
 
 version := $(shell cat VERSION)
 architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+=//')
@@ -9,19 +10,27 @@ architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+
 debian_package := rhasspy-microphone-cli-hermes_$(version)_$(architecture)
 debian_dir := debian/$(debian_package)
 
+reformat:
+	black .
+	isort $(PYTHON_FILES)
+
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
 	mypy $(PYTHON_FILES)
-	isort $(PYTHON_FILES)
-	black .
+	black --check .
+	isort --check-only $(PYTHON_FILES)
+	bashate $(SHELL_FILES)
+	yamllint .
 	pip list --outdated
 
 venv:
 	rm -rf .venv/
 	python3 -m venv .venv
+	.venv/bin/pip3 install --upgrade pip
 	.venv/bin/pip3 install wheel setuptools
-	.venv/bin/pip3 install -r requirements_all.txt
+	.venv/bin/pip3 install -r requirements.txt
+	.venv/bin/pip3 install -r requirements_dev.txt
 
 dist: sdist debian
 

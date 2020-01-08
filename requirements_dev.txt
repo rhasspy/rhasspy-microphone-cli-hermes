@@ -1,5 +1,7 @@
+bashate==0.6.0
 black==19.10b0
 flake8==3.7.9
-mypy==0.700
+mypy==0.761
 pylint==2.4.4
-pyinstaller==3.5
+-e git://github.com/pyinstaller/pyinstaller.git@9dd34bdfbaeaa4e0459bd3051d1caf0c7d75073f#egg=pyinstaller
+yamllint==1.20.0
