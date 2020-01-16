@@ -49,7 +49,7 @@ sdist:
 # -----------------------------------------------------------------------------
 
 docker: pyinstaller
-	docker build . -t "rhasspy/rhasspy-microphone-cli-hermes:$(version)"
+	docker build . -t "rhasspy/rhasspy-microphone-cli-hermes:$(version)" -t "rhasspy/$(PACKAGE_NAME):latest"
 
 deploy:
 	echo "$$DOCKER_PASSWORD" | docker login -u "$$DOCKER_USERNAME" --password-stdin
