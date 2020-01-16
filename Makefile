@@ -1,14 +1,21 @@
 SHELL := bash
-PYTHON_FILES = rhasspymicrophone_cli_hermes/*.py *.py
+PYTHON_NAME = rhasspymicrophone_cli_hermes
+PACKAGE_NAME = rhasspy-microphone-cli-hermes
+SOURCE = $(PYTHON_NAME)
+PYTHON_FILES = $(SOURCE)/*.py *.py
 SHELL_FILES = bin/* debian/bin/*
 
-.PHONY: reformat check venv dist sdist pyinstaller debian docker
+.PHONY: reformat check venv dist sdist pyinstaller debian docker deploy
 
 version := $(shell cat VERSION)
-architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+=//')
+architecture := $(shell bash architecture.sh)
 
-debian_package := rhasspy-microphone-cli-hermes_$(version)_$(architecture)
+debian_package := $(PACKAGE_NAME)_$(version)_$(architecture)
 debian_dir := debian/$(debian_package)
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
 
 reformat:
 	black .
@@ -37,10 +44,25 @@ dist: sdist debian
 sdist:
 	python3 setup.py sdist
 
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+
+docker: pyinstaller
+	docker build . -t "rhasspy/rhasspy-microphone-cli-hermes:$(version)"
+
+deploy:
+	echo "$$DOCKER_PASSWORD" | docker login -u "$$DOCKER_USERNAME" --password-stdin
+	docker push rhasspy/$(PACKAGE_NAME):$(version)
+
+# -----------------------------------------------------------------------------
+# Debian
+# -----------------------------------------------------------------------------
+
 pyinstaller:
 	mkdir -p dist
-	pyinstaller -y --workpath pyinstaller/build --distpath pyinstaller/dist rhasspymicrophone_cli_hermes.spec
-	tar -C pyinstaller/dist -czf dist/rhasspy-microphone-cli-hermes_$(version)_$(architecture).tar.gz rhasspymicrophone_cli_hermes/
+	pyinstaller -y --workpath pyinstaller/build --distpath pyinstaller/dist $(PYTHON_NAME).spec
+	tar -C pyinstaller/dist -czf dist/$(PACKAGE_NAME)_$(version)_$(architecture).tar.gz $(SOURCE)/
 
 debian: pyinstaller
 	mkdir -p dist
@@ -48,9 +70,6 @@ debian: pyinstaller
 	mkdir -p "$(debian_dir)/DEBIAN" "$(debian_dir)/usr/bin" "$(debian_dir)/usr/lib"
 	cat debian/DEBIAN/control | version=$(version) architecture=$(architecture) envsubst > "$(debian_dir)/DEBIAN/control"
 	cp debian/bin/* "$(debian_dir)/usr/bin/"
-	cp -R pyinstaller/dist/rhasspymicrophone_cli_hermes "$(debian_dir)/usr/lib/"
+	cp -R pyinstaller/dist/$(PYTHON_NAME) "$(debian_dir)/usr/lib/"
 	cd debian/ && fakeroot dpkg --build "$(debian_package)"
 	mv "debian/$(debian_package).deb" dist/
-
-docker: pyinstaller
-	docker build . -t "rhasspy/rhasspy-microphone-cli-hermes:$(version)"

@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def main():
     """Main method."""
-    parser = argparse.ArgumentParser(prog="rhasspymicrophone_cli_hermes")
+    parser = argparse.ArgumentParser(prog="rhasspy-microphone-cli-hermes")
     parser.add_argument(
         "--record-command", required=True, help="Command to record raw audio data"
     )
