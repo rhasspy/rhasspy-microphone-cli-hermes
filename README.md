@@ -73,4 +73,4 @@ optional arguments:
   --port PORT           MQTT port (default: 1883)
   --siteId SITEID       Hermes siteId of this server
   --debug               Print DEBUG messages to the console
- ```
+```
