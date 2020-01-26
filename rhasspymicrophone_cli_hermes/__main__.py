@@ -1,6 +1,7 @@
 """Hermes MQTT service for Rhasspy TTS with external program."""
 import argparse
 import logging
+import shlex
 
 import paho.mqtt.client as mqtt
 
@@ -33,6 +34,7 @@ def main():
         required=True,
         help="Number of channels in recorded audio (e.g., 1)",
     )
+    parser.add_argument("--list-command", help="Command to list available microphones")
     parser.add_argument(
         "--host", default="localhost", help="MQTT host (default: localhost)"
     )
@@ -59,10 +61,11 @@ def main():
         client = mqtt.Client()
         hermes = MicrophoneHermesMqtt(
             client,
-            args.record_command,
+            shlex.split(args.record_command),
             args.sample_rate,
             args.sample_width,
             args.channels,
+            list_command=args.list_command,
             siteId=args.siteId,
         )
 
@@ -76,6 +79,7 @@ def main():
 
         # Connect
         client.on_connect = hermes.on_connect
+        client.on_message = hermes.on_message
         client.on_disconnect = on_disconnect
 
         _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
