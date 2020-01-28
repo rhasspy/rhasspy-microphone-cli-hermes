@@ -4,6 +4,7 @@ PACKAGE_NAME = rhasspy-microphone-cli-hermes
 SOURCE = $(PYTHON_NAME)
 PYTHON_FILES = $(SOURCE)/*.py *.py
 SHELL_FILES = bin/* debian/bin/*
+PIP_INSTALL ?= install
 
 .PHONY: reformat check venv dist sdist pyinstaller debian docker deploy
 
@@ -34,10 +35,10 @@ check:
 venv:
 	rm -rf .venv/
 	python3 -m venv .venv
-	.venv/bin/pip3 install --upgrade pip
-	.venv/bin/pip3 install wheel setuptools
-	.venv/bin/pip3 install -r requirements.txt
-	.venv/bin/pip3 install -r requirements_dev.txt
+	.venv/bin/pip3 $(PIP_INSTALL) --upgrade pip
+	.venv/bin/pip3 $(PIP_INSTALL) wheel setuptools
+	.venv/bin/pip3 $(PIP_INSTALL) -r requirements.txt
+	.venv/bin/pip3 $(PIP_INSTALL) -r requirements_dev.txt
 
 dist: sdist debian
 
