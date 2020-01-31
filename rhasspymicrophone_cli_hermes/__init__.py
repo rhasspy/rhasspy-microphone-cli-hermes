@@ -104,7 +104,7 @@ class MicrophoneHermesMqtt:
                     if re.match(r"^\s", line):
                         description = line.strip()
                         if first_mic:
-                            description = description + "*"
+                            description += "*"
                             first_mic = False
                     else:
                         if name is not None:
