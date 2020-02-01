@@ -65,7 +65,7 @@ def main():
             args.sample_rate,
             args.sample_width,
             args.channels,
-            list_command=args.list_command,
+            list_command=shlex.split(args.list_command),
             siteId=args.siteId,
         )
 

@@ -1,4 +1,5 @@
 """Hermes MQTT server for Rhasspy TTS using external program"""
+import audioop
 import io
 import json
 import logging
@@ -83,6 +84,8 @@ class MicrophoneHermesMqtt:
         except Exception:
             _LOGGER.exception("record")
 
+    # -------------------------------------------------------------------------
+
     def handle_get_devices(self, get_devices: AudioGetDevices) -> AudioDevices:
         """Get available microphones and optionally test them."""
         devices: typing.List[AudioDevice] = []
@@ -97,7 +100,7 @@ class MicrophoneHermesMqtt:
                 ).splitlines()
 
                 # Parse output (assume like arecord -L)
-                name, description = None, None
+                name, description = None, ""
                 first_mic = True
                 for line in output:
                     line = line.rstrip()
@@ -108,12 +111,17 @@ class MicrophoneHermesMqtt:
                             first_mic = False
                     else:
                         if name is not None:
+                            working = None
+                            if get_devices.test:
+                                working = self.get_microphone_working(name)
+
                             devices.append(
                                 AudioDevice(
                                     mode=AudioDeviceMode.INPUT,
                                     id=name,
                                     name=name,
                                     description=description,
+                                    working=working,
                                 )
                             )
 
@@ -127,7 +135,60 @@ class MicrophoneHermesMqtt:
             devices=devices, id=get_devices.id, siteId=get_devices.siteId
         )
 
+    def get_microphone_working(self, device_name: str, chunk_size: int = 1024) -> bool:
+        """Record some audio from a microphone and check its energy."""
+        try:
+            # read audio
+            arecord_cmd = [
+                "arecord",
+                "-q",
+                "-D",
+                device_name,
+                "-r",
+                "16000",
+                "-f",
+                "S16_LE",
+                "-c",
+                "1",
+                "-t",
+                "raw",
+            ]
+
+            proc = subprocess.Popen(arecord_cmd, stdout=subprocess.PIPE)
+            buffer = proc.stdout.read(chunk_size * 2)
+            proc.terminate()
+
+            # compute RMS of debiased audio
+            # Thanks to the speech_recognition library!
+            # https://github.com/Uberi/speech_recognition/blob/master/speech_recognition/__init__.py
+            energy = -audioop.rms(buffer, 2)
+            energy_bytes = bytes([energy & 0xFF, (energy >> 8) & 0xFF])
+            debiased_energy = audioop.rms(
+                audioop.add(buffer, energy_bytes * (len(buffer) // 2), 2), 2
+            )
+
+            # probably actually audio
+            return debiased_energy > 30
+        except Exception:
+            _LOGGER.exception("get_microphone_working ({device_name})")
+            pass
+
+        return False
+
     # -------------------------------------------------------------------------
+
+    def on_connect(self, client, userdata, flags, rc):
+        """Connected to MQTT broker."""
+        try:
+            topics = [AudioGetDevices.topic()]
+
+            for topic in topics:
+                self.client.subscribe(topic)
+                _LOGGER.debug("Subscribed to %s", topic)
+
+            threading.Thread(target=self.record, daemon=True).start()
+        except Exception:
+            _LOGGER.exception("on_connect")
 
     def on_message(self, client, userdata, msg):
         """Received message from MQTT broker."""
@@ -143,13 +204,6 @@ class MicrophoneHermesMqtt:
                     self.publish(result)
         except Exception:
             _LOGGER.exception("on_message")
-
-    def on_connect(self, client, userdata, flags, rc):
-        """Connected to MQTT broker."""
-        try:
-            threading.Thread(target=self.record, daemon=True).start()
-        except Exception:
-            _LOGGER.exception("on_connect")
 
     def publish(self, message: Message, **topic_args):
         """Publish a Hermes message to MQTT."""
