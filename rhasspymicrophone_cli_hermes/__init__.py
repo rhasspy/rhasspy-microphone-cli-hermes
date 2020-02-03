@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import re
+import shlex
 import subprocess
 import threading
 import time
@@ -88,8 +89,14 @@ class MicrophoneHermesMqtt:
 
     # -------------------------------------------------------------------------
 
-    def handle_get_devices(self, get_devices: AudioGetDevices) -> AudioDevices:
+    def handle_get_devices(
+        self, get_devices: AudioGetDevices
+    ) -> typing.Optional[AudioDevices]:
         """Get available microphones and optionally test them."""
+
+        if get_devices.modes and (AudioDeviceMode.INPUT not in get_devices.modes):
+            return None
+
         devices: typing.List[AudioDevice] = []
 
         if self.list_command:
@@ -141,6 +148,7 @@ class MicrophoneHermesMqtt:
         """Record some audio from a microphone and check its energy."""
         try:
             # read audio
+            assert self.test_command, "Test command is required"
             test_cmd = shlex.split(self.test_command.format(device_name))
             _LOGGER.debug(test_cmd)
 
@@ -191,7 +199,8 @@ class MicrophoneHermesMqtt:
                     result = self.handle_get_devices(
                         AudioGetDevices.from_dict(json_payload)
                     )
-                    self.publish(result)
+                    if result:
+                        self.publish(result)
         except Exception:
             _LOGGER.exception("on_message")
 
@@ -211,5 +220,3 @@ class MicrophoneHermesMqtt:
 
     def _check_siteId(self, json_payload: typing.Dict[str, typing.Any]) -> bool:
         return json_payload.get("siteId", "default") == self.siteId
-
-    # -------------------------------------------------------------------------
