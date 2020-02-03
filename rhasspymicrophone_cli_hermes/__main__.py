@@ -35,6 +35,7 @@ def main():
         help="Number of channels in recorded audio (e.g., 1)",
     )
     parser.add_argument("--list-command", help="Command to list available microphones")
+    parser.add_argument("--test-command", help="Command to test a specific microphone")
     parser.add_argument(
         "--host", default="localhost", help="MQTT host (default: localhost)"
     )
@@ -66,6 +67,7 @@ def main():
             args.sample_width,
             args.channels,
             list_command=shlex.split(args.list_command),
+            test_command=args.test_command,
             siteId=args.siteId,
         )
 

@@ -35,6 +35,7 @@ class MicrophoneHermesMqtt:
         channels: int,
         chunk_size: int = 2048,
         list_command: typing.Optional[typing.List[str]] = None,
+        test_command: typing.Optional[str] = None,
         siteId: str = "default",
     ):
         self.client = client
@@ -44,6 +45,7 @@ class MicrophoneHermesMqtt:
         self.channels = channels
         self.chunk_size = chunk_size
         self.list_command = list_command
+        self.test_command = test_command
         self.siteId = siteId
 
         self.audioframe_topic: str = AudioFrame.topic(siteId=self.siteId)
@@ -139,22 +141,10 @@ class MicrophoneHermesMqtt:
         """Record some audio from a microphone and check its energy."""
         try:
             # read audio
-            arecord_cmd = [
-                "arecord",
-                "-q",
-                "-D",
-                device_name,
-                "-r",
-                "16000",
-                "-f",
-                "S16_LE",
-                "-c",
-                "1",
-                "-t",
-                "raw",
-            ]
+            test_cmd = shlex.split(self.test_command.format(device_name))
+            _LOGGER.debug(test_cmd)
 
-            proc = subprocess.Popen(arecord_cmd, stdout=subprocess.PIPE)
+            proc = subprocess.Popen(test_cmd, stdout=subprocess.PIPE)
             buffer = proc.stdout.read(chunk_size * 2)
             proc.terminate()
 

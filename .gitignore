@@ -6,3 +6,4 @@ dist/
 *.egg-info/
 pyinstaller/
 .vscode/
+download/
