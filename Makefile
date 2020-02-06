@@ -44,5 +44,8 @@ deploy:
 # Debian
 # -----------------------------------------------------------------------------
 
+pyinstaller:
+	scripts/build-pyinstaller.sh "${architecture}" "${version}"
+
 debian:
 	scripts/build-debian.sh "${architecture}" "${version}"
