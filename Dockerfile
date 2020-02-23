@@ -1,11 +1,19 @@
-ARG BUILD_ARCH=amd64
-FROM ${BUILD_ARCH}/debian:buster-slim
+ARG BUILD_ARCH
+FROM ${BUILD_ARCH}/python:3.7-alpine
+ARG BUILD_ARCH
+ARG FRIENDLY_ARCH
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        alsa-utils
+COPY requirements.txt /
 
-COPY pyinstaller/dist/* /usr/lib/rhasspymicrophone_cli_hermes/
-COPY debian/bin/* /usr/bin/
+RUN grep '^rhasspy-' /requirements.txt | \
+    sed -e 's|=.\+|/archive/master.tar.gz|' | \
+    sed 's|^|https://github.com/rhasspy/|' \
+    > /requirements_rhasspy.txt
 
-ENTRYPOINT ["/usr/bin/rhasspy-microphone-cli-hermes"]
+RUN pip install --no-cache-dir -r /requirements_rhasspy.txt
+RUN pip install --no-cache-dir -r /requirements.txt
+
+COPY rhasspymicrophone_cli_hermes/ /rhasspymicrophone_cli_hermes/
+WORKDIR /
+
+ENTRYPOINT ["python3", "-m", "rhasspymicrophone_cli_hermes"]
