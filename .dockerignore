@@ -3,3 +3,4 @@
 !debian/bin
 !requirements.txt
 !rhasspymicrophone_cli_hermes/*.py
+!etc
