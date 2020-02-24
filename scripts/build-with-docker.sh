@@ -29,9 +29,7 @@ done
 # Do Docker builds
 service_name="$(basename "${src_dir}")"
 docker_archs=('amd64' 'arm32v7' 'arm64v8' 'arm32v6')
-if [[ -z "$1" ]]; then
-    docker_archs=('amd64' 'arm32v7' 'arm64v8')
-else
+if [[ ! -z "$1" ]]; then
     docker_archs=("$@")
 fi
 declare -A friendly_archs
