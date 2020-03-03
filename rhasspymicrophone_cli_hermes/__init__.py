@@ -38,6 +38,7 @@ class MicrophoneHermesMqtt:
         list_command: typing.Optional[typing.List[str]] = None,
         test_command: typing.Optional[str] = None,
         siteId: str = "default",
+        output_siteId: typing.Optional[str] = None,
     ):
         self.client = client
         self.record_command = record_command
@@ -48,8 +49,9 @@ class MicrophoneHermesMqtt:
         self.list_command = list_command
         self.test_command = test_command
         self.siteId = siteId
+        self.output_siteId = output_siteId or siteId
 
-        self.audioframe_topic: str = AudioFrame.topic(siteId=self.siteId)
+        self.audioframe_topic: str = AudioFrame.topic(siteId=self.output_siteId)
         self.test_audio_buffer: typing.Optional[bytes] = None
 
     # -------------------------------------------------------------------------

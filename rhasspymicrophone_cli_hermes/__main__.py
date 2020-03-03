@@ -46,6 +46,9 @@ def main():
         "--siteId", default="default", help="Hermes siteId of this server"
     )
     parser.add_argument(
+        "--output-siteId", help="If set, output audio data to a different siteId"
+    )
+    parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to the console"
     )
     args = parser.parse_args()
@@ -69,6 +72,7 @@ def main():
             list_command=shlex.split(args.list_command),
             test_command=args.test_command,
             siteId=args.siteId,
+            output_siteId=args.output_siteId,
         )
 
         def on_disconnect(client, userdata, flags, rc):
