@@ -56,12 +56,17 @@ def main():
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to the console"
     )
+    parser.add_argument(
+        "--log-format",
+        default="[%(levelname)s:%(asctime)s] %(name)s: %(message)s",
+        help="Python logger format",
+    )
     args = parser.parse_args()
 
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format=args.log_format)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format=args.log_format)
 
     _LOGGER.debug(args)
 
