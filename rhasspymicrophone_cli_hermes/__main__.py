@@ -7,7 +7,9 @@ import paho.mqtt.client as mqtt
 
 from . import MicrophoneHermesMqtt
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("rhasspymicrophone_cli_hermes")
+
+# -----------------------------------------------------------------------------
 
 
 def main():
@@ -70,6 +72,9 @@ def main():
 
     _LOGGER.debug(args)
 
+    if args.list_command:
+        args.list_command = shlex.split(args.list_command)
+
     try:
         # Listen for messages
         client = mqtt.Client()
@@ -79,7 +84,7 @@ def main():
             args.sample_rate,
             args.sample_width,
             args.channels,
-            list_command=shlex.split(args.list_command),
+            list_command=args.list_command,
             test_command=args.test_command,
             siteId=args.siteId,
             output_siteId=args.output_siteId,

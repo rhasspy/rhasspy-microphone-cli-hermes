@@ -24,7 +24,9 @@ from rhasspyhermes.audioserver import (
 )
 from rhasspyhermes.base import Message
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("rhasspymicrophone_cli_hermes")
+
+# -----------------------------------------------------------------------------
 
 
 class MicrophoneHermesMqtt:
@@ -71,7 +73,6 @@ class MicrophoneHermesMqtt:
         """Record audio from external program's stdout."""
         try:
             _LOGGER.debug(self.record_command)
-
             record_proc = subprocess.Popen(self.record_command, stdout=subprocess.PIPE)
             _LOGGER.debug("Recording audio")
 
