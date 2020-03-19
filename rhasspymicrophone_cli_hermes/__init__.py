@@ -1,7 +1,7 @@
 """Hermes MQTT server for Rhasspy TTS using external program"""
+import asyncio
 import audioop
 import io
-import json
 import logging
 import re
 import shlex
@@ -13,7 +13,6 @@ import typing
 import wave
 from queue import Queue
 
-import attr
 from rhasspyhermes.asr import AsrStartListening, AsrStopListening
 from rhasspyhermes.audioserver import (
     AudioDevice,
@@ -23,13 +22,14 @@ from rhasspyhermes.audioserver import (
     AudioGetDevices,
 )
 from rhasspyhermes.base import Message
+from rhasspyhermes.client import HermesClient
 
 _LOGGER = logging.getLogger("rhasspymicrophone_cli_hermes")
 
 # -----------------------------------------------------------------------------
 
 
-class MicrophoneHermesMqtt:
+class MicrophoneHermesMqtt(HermesClient):
     """Hermes MQTT server for Rhasspy microphone input using external program."""
 
     def __init__(
@@ -45,8 +45,14 @@ class MicrophoneHermesMqtt:
         siteId: str = "default",
         output_siteId: typing.Optional[str] = None,
         udp_audio_port: typing.Optional[int] = None,
+        loop=None,
     ):
-        self.client = client
+        super().__init__(
+            "rhasspymicrophone_cli_hermes", client, siteIds=[siteId], loop=loop
+        )
+
+        self.subscribe(AudioGetDevices)
+
         self.record_command = record_command
         self.sample_rate = sample_rate
         self.sample_width = sample_width
@@ -56,7 +62,7 @@ class MicrophoneHermesMqtt:
         self.test_command = test_command
         self.siteId = siteId
 
-        self.output_siteId = output_siteId or siteId
+        self.output_siteId = output_siteId or self.siteId
 
         self.udp_audio_port = udp_audio_port
         self.udp_output = False
@@ -64,8 +70,20 @@ class MicrophoneHermesMqtt:
 
         self.chunk_queue: Queue = Queue()
 
-        self.audioframe_topic: str = AudioFrame.topic(siteId=self.output_siteId)
         self.test_audio_buffer: typing.Optional[bytes] = None
+
+        # Event loop
+        self.loop = loop or asyncio.get_event_loop()
+
+        # Start threads
+        if self.udp_audio_port is not None:
+            self.udp_output = True
+            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            _LOGGER.debug("Audio will also be sent to UDP port %s", self.udp_audio_port)
+            self.subscribe(AsrStartListening, AsrStopListening)
+
+        threading.Thread(target=self.publish_chunks, daemon=True).start()
+        threading.Thread(target=self.record, daemon=True).start()
 
     # -------------------------------------------------------------------------
 
@@ -112,22 +130,24 @@ class MicrophoneHermesMqtt:
                             wav_bytes = wav_buffer.getvalue()
                             self.udp_socket.sendto(wav_bytes, udp_dest)
                         else:
-                            # Publish to audioFrame topic
-                            self.client.publish(
-                                self.audioframe_topic, wav_buffer.getvalue()
+                            # Publish to output siteId
+                            self.publish(
+                                AudioFrame(wav_bytes=wav_buffer.getvalue()),
+                                siteId=self.output_siteId,
                             )
         except Exception:
             _LOGGER.exception("publish_chunks")
 
     # -------------------------------------------------------------------------
 
-    def handle_get_devices(
+    async def handle_get_devices(
         self, get_devices: AudioGetDevices
-    ) -> typing.Optional[AudioDevices]:
+    ) -> typing.AsyncIterable[AudioDevices]:
         """Get available microphones and optionally test them."""
 
         if get_devices.modes and (AudioDeviceMode.INPUT not in get_devices.modes):
-            return None
+            _LOGGER.debug("Not a request for input devices")
+            return
 
         devices: typing.List[AudioDevice] = []
 
@@ -172,7 +192,7 @@ class MicrophoneHermesMqtt:
         else:
             _LOGGER.warning("No device list command. Cannot list microphones.")
 
-        return AudioDevices(
+        yield AudioDevices(
             devices=devices, id=get_devices.id, siteId=get_devices.siteId
         )
 
@@ -207,72 +227,23 @@ class MicrophoneHermesMqtt:
 
     # -------------------------------------------------------------------------
 
-    def on_connect(self, client, userdata, flags, rc):
-        """Connected to MQTT broker."""
-        try:
-            topics = [AudioGetDevices.topic()]
-
+    async def on_message(
+        self,
+        message: Message,
+        siteId: typing.Optional[str] = None,
+        sessionId: typing.Optional[str] = None,
+        topic: typing.Optional[str] = None,
+    ):
+        """Received message from MQTT broker."""
+        if isinstance(message, AudioGetDevices):
+            await self.publish_all(self.handle_get_devices(message))
+        elif isinstance(message, AsrStartListening):
+            if self.udp_audio_port is not None:
+                self.udp_output = False
+                _LOGGER.debug("Disable UDP output")
+        elif isinstance(message, AsrStopListening):
             if self.udp_audio_port is not None:
                 self.udp_output = True
-                self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                _LOGGER.debug(
-                    "Audio will also be sent to UDP port %s", self.udp_audio_port
-                )
-                topics.extend([AsrStartListening.topic(), AsrStopListening.topic()])
-
-            for topic in topics:
-                self.client.subscribe(topic)
-                _LOGGER.debug("Subscribed to %s", topic)
-
-            threading.Thread(target=self.publish_chunks, daemon=True).start()
-            threading.Thread(target=self.record, daemon=True).start()
-        except Exception:
-            _LOGGER.exception("on_connect")
-
-    def on_message(self, client, userdata, msg):
-        """Received message from MQTT broker."""
-        try:
-            _LOGGER.debug("Received %s byte(s) on %s", len(msg.payload), msg.topic)
-
-            if msg.topic == AudioGetDevices.topic():
-                json_payload = json.loads(msg.payload)
-                if self._check_siteId(json_payload):
-                    result = self.handle_get_devices(
-                        AudioGetDevices.from_dict(json_payload)
-                    )
-                    if result:
-                        self.publish(result)
-            elif msg.topic == AsrStartListening.topic():
-                json_payload = json.loads(msg.payload)
-                if (self.udp_audio_port is not None) and self._check_siteId(
-                    json_payload
-                ):
-                    self.udp_output = False
-                    _LOGGER.debug("Enable UDP output")
-            elif msg.topic == AsrStopListening.topic():
-                json_payload = json.loads(msg.payload)
-                if (self.udp_audio_port is not None) and self._check_siteId(
-                    json_payload
-                ):
-                    self.udp_output = True
-                    _LOGGER.debug("Disable UDP output")
-        except Exception:
-            _LOGGER.exception("on_message")
-            _LOGGER.error("%s %s", msg.topic, msg.payload)
-
-    def publish(self, message: Message, **topic_args):
-        """Publish a Hermes message to MQTT."""
-        try:
-            assert self.client
-            topic = message.topic(**topic_args)
-
-            _LOGGER.debug("-> %s", message)
-            payload: typing.Union[str, bytes] = json.dumps(attr.asdict(message))
-
-            _LOGGER.debug("Publishing %s char(s) to %s", len(payload), topic)
-            self.client.publish(topic, payload)
-        except Exception:
-            _LOGGER.exception("on_message")
-
-    def _check_siteId(self, json_payload: typing.Dict[str, typing.Any]) -> bool:
-        return json_payload.get("siteId", "default") == self.siteId
+                _LOGGER.debug("Enable UDP output")
+        else:
+            _LOGGER.warning("Unexpected message: %s", message)
