@@ -60,7 +60,6 @@ class MicrophoneHermesMqtt(HermesClient):
         self.chunk_size = chunk_size
         self.list_command = list_command
         self.test_command = test_command
-        self.siteId = siteId
 
         self.output_siteId = output_siteId or self.siteId
 
