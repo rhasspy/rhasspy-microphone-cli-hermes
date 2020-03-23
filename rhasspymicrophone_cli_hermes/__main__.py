@@ -71,7 +71,7 @@ def main():
             args.channels,
             list_command=args.list_command,
             test_command=args.test_command,
-            siteId=args.siteId,
+            siteIds=args.siteId,
             output_siteId=args.output_siteId,
             udp_audio_port=args.udp_audio_port,
             loop=loop,

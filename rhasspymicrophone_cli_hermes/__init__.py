@@ -42,13 +42,13 @@ class MicrophoneHermesMqtt(HermesClient):
         chunk_size: int = 2048,
         list_command: typing.Optional[typing.List[str]] = None,
         test_command: typing.Optional[str] = None,
-        siteId: str = "default",
+        siteIds: typing.Optional[typing.List[str]] = None,
         output_siteId: typing.Optional[str] = None,
         udp_audio_port: typing.Optional[int] = None,
         loop=None,
     ):
         super().__init__(
-            "rhasspymicrophone_cli_hermes", client, siteIds=[siteId], loop=loop
+            "rhasspymicrophone_cli_hermes", client, siteIds=siteIds, loop=loop
         )
 
         self.subscribe(AudioGetDevices)
