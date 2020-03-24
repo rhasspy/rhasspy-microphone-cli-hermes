@@ -1,6 +1,5 @@
 """Hermes MQTT server for Rhasspy TTS using external program"""
 import asyncio
-import audioop
 import io
 import logging
 import re
@@ -13,6 +12,7 @@ import typing
 import wave
 from queue import Queue
 
+import webrtcvad
 from rhasspyhermes.asr import AsrStartListening, AsrStopListening
 from rhasspyhermes.audioserver import (
     AudioDevice,
@@ -20,9 +20,12 @@ from rhasspyhermes.audioserver import (
     AudioDevices,
     AudioFrame,
     AudioGetDevices,
+    AudioSummary,
+    SummaryToggleOff,
+    SummaryToggleOn,
 )
 from rhasspyhermes.base import Message
-from rhasspyhermes.client import HermesClient
+from rhasspyhermes.client import GeneratorType, HermesClient
 
 _LOGGER = logging.getLogger("rhasspymicrophone_cli_hermes")
 
@@ -45,6 +48,7 @@ class MicrophoneHermesMqtt(HermesClient):
         siteIds: typing.Optional[typing.List[str]] = None,
         output_siteId: typing.Optional[str] = None,
         udp_audio_port: typing.Optional[int] = None,
+        vad_mode: int = 3,
         loop=None,
     ):
         super().__init__(
@@ -70,6 +74,13 @@ class MicrophoneHermesMqtt(HermesClient):
         self.chunk_queue: Queue = Queue()
 
         self.test_audio_buffer: typing.Optional[bytes] = None
+
+        # Send audio summaries
+        self.enable_summary = False
+        self.vad: typing.Optional[webrtcvad.Vad] = None
+        self.vad_mode = vad_mode
+        self.vad_audio_data = bytes()
+        self.vad_chunk_size: int = 960  # 30ms
 
         # Event loop
         self.loop = loop or asyncio.get_event_loop()
@@ -124,16 +135,51 @@ class MicrophoneHermesMqtt(HermesClient):
                             wav_file.setnchannels(self.channels)
                             wav_file.writeframes(chunk)
 
+                        wav_bytes = wav_buffer.getvalue()
+
                         if self.udp_output:
                             # UDP output
-                            wav_bytes = wav_buffer.getvalue()
                             self.udp_socket.sendto(wav_bytes, udp_dest)
                         else:
                             # Publish to output siteId
                             self.publish(
-                                AudioFrame(wav_bytes=wav_buffer.getvalue()),
+                                AudioFrame(wav_bytes=wav_bytes),
                                 siteId=self.output_siteId,
                             )
+
+                    if self.enable_summary:
+                        if not self.vad:
+                            # Create voice activity detector
+                            self.vad = webrtcvad.Vad()
+                            self.vad.set_mode(self.vad_mode)
+
+                        # webrtcvad needs 16-bit 16Khz mono
+                        self.vad_audio_data += self.maybe_convert_wav(
+                            wav_bytes, sample_rate=16000, sample_width=2, channels=1
+                        )
+
+                        is_speech = False
+
+                        # Process in chunks of 30ms for webrtcvad
+                        while len(self.vad_audio_data) >= self.vad_chunk_size:
+                            vad_chunk = self.vad_audio_data[: self.vad_chunk_size]
+                            self.vad_audio_data = self.vad_audio_data[
+                                self.vad_chunk_size :
+                            ]
+
+                            # Speech in any chunk counts as speech
+                            is_speech = is_speech or self.vad.is_speech(
+                                vad_chunk, 16000
+                            )
+
+                        # Publish audio summary
+                        self.publish(
+                            AudioSummary(
+                                debiased_energy=AudioSummary.get_debiased_energy(chunk),
+                                is_speech=is_speech,
+                            ),
+                            siteId=self.output_siteId,
+                        )
         except Exception:
             _LOGGER.exception("publish_chunks")
 
@@ -204,17 +250,10 @@ class MicrophoneHermesMqtt(HermesClient):
             _LOGGER.debug(test_cmd)
 
             proc = subprocess.Popen(test_cmd, stdout=subprocess.PIPE)
-            buffer = proc.stdout.read(chunk_size * 2)
+            audio_data = proc.stdout.read(chunk_size * 2)
             proc.terminate()
 
-            # compute RMS of debiased audio
-            # Thanks to the speech_recognition library!
-            # https://github.com/Uberi/speech_recognition/blob/master/speech_recognition/__init__.py
-            energy = -audioop.rms(buffer, 2)
-            energy_bytes = bytes([energy & 0xFF, (energy >> 8) & 0xFF])
-            debiased_energy = audioop.rms(
-                audioop.add(buffer, energy_bytes * (len(buffer) // 2), 2), 2
-            )
+            debiased_energy = AudioSummary.get_debiased_energy(audio_data)
 
             # probably actually audio
             return debiased_energy > 30
@@ -232,10 +271,11 @@ class MicrophoneHermesMqtt(HermesClient):
         siteId: typing.Optional[str] = None,
         sessionId: typing.Optional[str] = None,
         topic: typing.Optional[str] = None,
-    ):
+    ) -> GeneratorType:
         """Received message from MQTT broker."""
         if isinstance(message, AudioGetDevices):
-            await self.publish_all(self.handle_get_devices(message))
+            async for device_result in self.handle_get_devices(message):
+                yield device_result
         elif isinstance(message, AsrStartListening):
             if self.udp_audio_port is not None:
                 self.udp_output = False
@@ -244,5 +284,11 @@ class MicrophoneHermesMqtt(HermesClient):
             if self.udp_audio_port is not None:
                 self.udp_output = True
                 _LOGGER.debug("Enable UDP output")
+        elif isinstance(message, SummaryToggleOn):
+            self.enable_summary = True
+            _LOGGER.debug("Enable audio summaries")
+        elif isinstance(message, SummaryToggleOff):
+            self.enable_summary = False
+            _LOGGER.debug("Disable audio summaries")
         else:
             _LOGGER.warning("Unexpected message: %s", message)
