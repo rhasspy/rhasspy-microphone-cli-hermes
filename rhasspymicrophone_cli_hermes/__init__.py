@@ -55,7 +55,7 @@ class MicrophoneHermesMqtt(HermesClient):
             "rhasspymicrophone_cli_hermes", client, siteIds=siteIds, loop=loop
         )
 
-        self.subscribe(AudioGetDevices)
+        self.subscribe(AudioGetDevices, SummaryToggleOn, SummaryToggleOff)
 
         self.record_command = record_command
         self.sample_rate = sample_rate
