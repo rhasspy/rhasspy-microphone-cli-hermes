@@ -250,6 +250,7 @@ class MicrophoneHermesMqtt(HermesClient):
             _LOGGER.debug(test_cmd)
 
             proc = subprocess.Popen(test_cmd, stdout=subprocess.PIPE)
+            assert proc.stdout
             audio_data = proc.stdout.read(chunk_size * 2)
             proc.terminate()
 
