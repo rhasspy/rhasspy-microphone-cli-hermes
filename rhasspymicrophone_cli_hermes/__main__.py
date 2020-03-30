@@ -58,35 +58,33 @@ def main():
     if args.list_command:
         args.list_command = shlex.split(args.list_command)
 
+    # Listen for messages
+    client = mqtt.Client()
+    hermes = MicrophoneHermesMqtt(
+        client,
+        shlex.split(args.record_command),
+        args.sample_rate,
+        args.sample_width,
+        args.channels,
+        list_command=args.list_command,
+        test_command=args.test_command,
+        siteIds=args.siteId,
+        output_siteId=args.output_siteId,
+        udp_audio_port=args.udp_audio_port,
+    )
+
+    _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
+    hermes_cli.connect(client, args)
+    client.loop_start()
+
     try:
-        loop = asyncio.get_event_loop()
-
-        # Listen for messages
-        client = mqtt.Client()
-        hermes = MicrophoneHermesMqtt(
-            client,
-            shlex.split(args.record_command),
-            args.sample_rate,
-            args.sample_width,
-            args.channels,
-            list_command=args.list_command,
-            test_command=args.test_command,
-            siteIds=args.siteId,
-            output_siteId=args.output_siteId,
-            udp_audio_port=args.udp_audio_port,
-            loop=loop,
-        )
-
-        _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
-        hermes_cli.connect(client, args)
-        client.loop_start()
-
         # Run event loop
-        hermes.loop.run_forever()
+        asyncio.run(hermes.handle_messages_async())
     except KeyboardInterrupt:
         pass
     finally:
         _LOGGER.debug("Shutting down")
+        client.loop_stop()
 
 
 # -----------------------------------------------------------------------------

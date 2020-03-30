@@ -1,5 +1,4 @@
 """Hermes MQTT server for Rhasspy TTS using external program"""
-import asyncio
 import io
 import logging
 import re
@@ -49,11 +48,8 @@ class MicrophoneHermesMqtt(HermesClient):
         output_siteId: typing.Optional[str] = None,
         udp_audio_port: typing.Optional[int] = None,
         vad_mode: int = 3,
-        loop=None,
     ):
-        super().__init__(
-            "rhasspymicrophone_cli_hermes", client, siteIds=siteIds, loop=loop
-        )
+        super().__init__("rhasspymicrophone_cli_hermes", client, siteIds=siteIds)
 
         self.subscribe(AudioGetDevices, SummaryToggleOn, SummaryToggleOff)
 
@@ -81,9 +77,6 @@ class MicrophoneHermesMqtt(HermesClient):
         self.vad_mode = vad_mode
         self.vad_audio_data = bytes()
         self.vad_chunk_size: int = 960  # 30ms
-
-        # Event loop
-        self.loop = loop or asyncio.get_event_loop()
 
         # Start threads
         if self.udp_audio_port is not None:
