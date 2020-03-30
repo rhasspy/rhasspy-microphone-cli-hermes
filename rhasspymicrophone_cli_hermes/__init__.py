@@ -78,6 +78,10 @@ class MicrophoneHermesMqtt(HermesClient):
         self.vad_audio_data = bytes()
         self.vad_chunk_size: int = 960  # 30ms
 
+        # Frames to skip between audio summaries
+        self.summary_skip_frames = 5
+        self.summary_frames_left = self.summary_skip_frames
+
         # Start threads
         if self.udp_audio_port is not None:
             self.udp_output = True
@@ -141,6 +145,11 @@ class MicrophoneHermesMqtt(HermesClient):
                             )
 
                     if self.enable_summary:
+                        self.summary_frames_left -= 1
+                        if self.summary_frames_left > 0:
+                            continue
+
+                        self.summary_frames_left = self.summary_skip_frames
                         if not self.vad:
                             # Create voice activity detector
                             self.vad = webrtcvad.Vad()
