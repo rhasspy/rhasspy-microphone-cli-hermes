@@ -19,6 +19,7 @@ from rhasspyhermes.audioserver import (
     AudioDevices,
     AudioFrame,
     AudioGetDevices,
+    AudioRecordError,
     AudioSummary,
     SummaryToggleOff,
     SummaryToggleOn,
@@ -108,8 +109,15 @@ class MicrophoneHermesMqtt(HermesClient):
                 else:
                     # Avoid 100% CPU usage
                     time.sleep(0.01)
-        except Exception:
+        except Exception as e:
             _LOGGER.exception("record")
+            self.publish(
+                AudioRecordError(
+                    error=str(e),
+                    context=str(self.record_command),
+                    siteId=self.output_siteId,
+                )
+            )
 
     def publish_chunks(self):
         """Publish audio chunks to MQTT or UDP."""
@@ -182,14 +190,19 @@ class MicrophoneHermesMqtt(HermesClient):
                             ),
                             siteId=self.output_siteId,
                         )
-        except Exception:
+        except Exception as e:
             _LOGGER.exception("publish_chunks")
+            self.publish(
+                AudioRecordError(
+                    error=str(e), context="publish_chunks", siteId=self.output_siteId
+                )
+            )
 
     # -------------------------------------------------------------------------
 
     async def handle_get_devices(
         self, get_devices: AudioGetDevices
-    ) -> typing.AsyncIterable[AudioDevices]:
+    ) -> typing.AsyncIterable[typing.Union[AudioDevices, AudioRecordError]]:
         """Get available microphones and optionally test them."""
 
         if get_devices.modes and (AudioDeviceMode.INPUT not in get_devices.modes):
@@ -234,8 +247,11 @@ class MicrophoneHermesMqtt(HermesClient):
                             )
 
                         name = line.strip()
-            except Exception:
+            except Exception as e:
                 _LOGGER.exception("handle_get_devices")
+                yield AudioRecordError(
+                    error=str(e), context=get_devices.id, siteId=get_devices.siteId
+                )
         else:
             _LOGGER.warning("No device list command. Cannot list microphones.")
 
