@@ -41,7 +41,7 @@ def main():
     parser.add_argument("--list-command", help="Command to list available microphones")
     parser.add_argument("--test-command", help="Command to test a specific microphone")
     parser.add_argument(
-        "--output-siteId", help="If set, output audio data to a different siteId"
+        "--output-site-id", help="If set, output audio data to a different site_id"
     )
     parser.add_argument(
         "--udp-audio-port",
@@ -68,8 +68,8 @@ def main():
         args.channels,
         list_command=args.list_command,
         test_command=args.test_command,
-        siteIds=args.siteId,
-        output_siteId=args.output_siteId,
+        site_ids=args.site_id,
+        output_site_id=args.output_site_id,
         udp_audio_port=args.udp_audio_port,
     )
 

@@ -45,12 +45,12 @@ class MicrophoneHermesMqtt(HermesClient):
         chunk_size: int = 2048,
         list_command: typing.Optional[typing.List[str]] = None,
         test_command: typing.Optional[str] = None,
-        siteIds: typing.Optional[typing.List[str]] = None,
-        output_siteId: typing.Optional[str] = None,
+        site_ids: typing.Optional[typing.List[str]] = None,
+        output_site_id: typing.Optional[str] = None,
         udp_audio_port: typing.Optional[int] = None,
         vad_mode: int = 3,
     ):
-        super().__init__("rhasspymicrophone_cli_hermes", client, siteIds=siteIds)
+        super().__init__("rhasspymicrophone_cli_hermes", client, site_ids=site_ids)
 
         self.subscribe(AudioGetDevices, SummaryToggleOn, SummaryToggleOff)
 
@@ -62,7 +62,7 @@ class MicrophoneHermesMqtt(HermesClient):
         self.list_command = list_command
         self.test_command = test_command
 
-        self.output_siteId = output_siteId or self.siteId
+        self.output_site_id = output_site_id or self.site_id
 
         self.udp_audio_port = udp_audio_port
         self.udp_output = False
@@ -115,7 +115,7 @@ class MicrophoneHermesMqtt(HermesClient):
                 AudioRecordError(
                     error=str(e),
                     context=str(self.record_command),
-                    siteId=self.output_siteId,
+                    site_id=self.output_site_id,
                 )
             )
 
@@ -146,10 +146,10 @@ class MicrophoneHermesMqtt(HermesClient):
                             # UDP output
                             self.udp_socket.sendto(wav_bytes, udp_dest)
                         else:
-                            # Publish to output siteId
+                            # Publish to output site_id
                             self.publish(
                                 AudioFrame(wav_bytes=wav_bytes),
-                                siteId=self.output_siteId,
+                                site_id=self.output_site_id,
                             )
 
                     if self.enable_summary:
@@ -188,13 +188,13 @@ class MicrophoneHermesMqtt(HermesClient):
                                 debiased_energy=AudioSummary.get_debiased_energy(chunk),
                                 is_speech=is_speech,
                             ),
-                            siteId=self.output_siteId,
+                            site_id=self.output_site_id,
                         )
         except Exception as e:
             _LOGGER.exception("publish_chunks")
             self.publish(
                 AudioRecordError(
-                    error=str(e), context="publish_chunks", siteId=self.output_siteId
+                    error=str(e), context="publish_chunks", site_id=self.output_site_id
                 )
             )
 
@@ -250,13 +250,13 @@ class MicrophoneHermesMqtt(HermesClient):
             except Exception as e:
                 _LOGGER.exception("handle_get_devices")
                 yield AudioRecordError(
-                    error=str(e), context=get_devices.id, siteId=get_devices.siteId
+                    error=str(e), context=get_devices.id, site_id=get_devices.site_id
                 )
         else:
             _LOGGER.warning("No device list command. Cannot list microphones.")
 
         yield AudioDevices(
-            devices=devices, id=get_devices.id, siteId=get_devices.siteId
+            devices=devices, id=get_devices.id, site_id=get_devices.site_id
         )
 
     def get_microphone_working(self, device_name: str, chunk_size: int = 1024) -> bool:
@@ -287,8 +287,8 @@ class MicrophoneHermesMqtt(HermesClient):
     async def on_message(
         self,
         message: Message,
-        siteId: typing.Optional[str] = None,
-        sessionId: typing.Optional[str] = None,
+        site_id: typing.Optional[str] = None,
+        session_id: typing.Optional[str] = None,
         topic: typing.Optional[str] = None,
     ) -> GeneratorType:
         """Received message from MQTT broker."""
