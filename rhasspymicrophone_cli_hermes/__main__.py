@@ -44,6 +44,11 @@ def main():
         "--output-site-id", help="If set, output audio data to a different site_id"
     )
     parser.add_argument(
+        "--udp-audio-host",
+        default="127.0.0.1",
+        help="Host for UDP audio (default: 127.0.0.1)",
+    )
+    parser.add_argument(
         "--udp-audio-port",
         type=int,
         help="Send raw audio to UDP port outside ASR listening",
@@ -70,6 +75,7 @@ def main():
         test_command=args.test_command,
         site_ids=args.site_id,
         output_site_id=args.output_site_id,
+        udp_audio_host=args.udp_audio_host,
         udp_audio_port=args.udp_audio_port,
     )
 

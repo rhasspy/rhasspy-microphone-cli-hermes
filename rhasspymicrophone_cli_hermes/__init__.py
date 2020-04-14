@@ -47,6 +47,7 @@ class MicrophoneHermesMqtt(HermesClient):
         test_command: typing.Optional[str] = None,
         site_ids: typing.Optional[typing.List[str]] = None,
         output_site_id: typing.Optional[str] = None,
+        udp_audio_host: str = "127.0.0.1",
         udp_audio_port: typing.Optional[int] = None,
         vad_mode: int = 3,
     ):
@@ -64,6 +65,7 @@ class MicrophoneHermesMqtt(HermesClient):
 
         self.output_site_id = output_site_id or self.site_id
 
+        self.udp_audio_host = udp_audio_host
         self.udp_audio_port = udp_audio_port
         self.udp_output = False
         self.udp_socket: typing.Optional[socket.socket] = None
@@ -87,7 +89,11 @@ class MicrophoneHermesMqtt(HermesClient):
         if self.udp_audio_port is not None:
             self.udp_output = True
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            _LOGGER.debug("Audio will also be sent to UDP port %s", self.udp_audio_port)
+            _LOGGER.debug(
+                "Audio will also be sent to UDP %s:%s",
+                self.udp_audio_host,
+                self.udp_audio_port,
+            )
             self.subscribe(AsrStartListening, AsrStopListening)
 
         threading.Thread(target=self.publish_chunks, daemon=True).start()
@@ -122,7 +128,7 @@ class MicrophoneHermesMqtt(HermesClient):
     def publish_chunks(self):
         """Publish audio chunks to MQTT or UDP."""
         try:
-            udp_dest = ("127.0.0.1", self.udp_audio_port)
+            udp_dest = (self.udp_audio_host, self.udp_audio_port)
 
             while True:
                 chunk = self.chunk_queue.get()
@@ -284,7 +290,7 @@ class MicrophoneHermesMqtt(HermesClient):
 
     # -------------------------------------------------------------------------
 
-    async def on_message(
+    async def on_message_blocking(
         self,
         message: Message,
         site_id: typing.Optional[str] = None,
