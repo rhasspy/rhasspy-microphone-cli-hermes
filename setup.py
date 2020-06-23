@@ -1,23 +1,31 @@
 """Setup script for rhasspy-microphone-cli-hermes package"""
-import os
+from pathlib import Path
 
 import setuptools
 
-this_dir = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(this_dir, "README.md"), "r") as readme_file:
-    long_description = readme_file.read()
+this_dir = Path(__file__).parent
 
-with open(os.path.join(this_dir, "requirements.txt"), "r") as requirements_file:
+# -----------------------------------------------------------------------------
+
+# Load README in as long description
+long_description: str = ""
+readme_path = this_dir / "README.md"
+if readme_path.is_file():
+    long_description = readme_path.read_text()
+
+requirements_path = this_dir / "requirements.txt"
+with open(requirements_path, "r") as requirements_file:
     requirements = requirements_file.read().splitlines()
 
-with open(os.path.join(this_dir, "VERSION"), "r") as version_file:
+version_path = this_dir / "VERSION"
+with open(version_path, "r") as version_file:
     version = version_file.read().strip()
 
 setuptools.setup(
     name="rhasspy-microphone-cli-hermes",
     version=version,
     author="Michael Hansen",
-    author_email="hansen.mike@gmail.com",
+    author_email="mike@rhasspy.org",
     url="https://github.com/rhasspy/rhasspy-microphone-cli-hermes",
     packages=setuptools.find_packages(),
     install_requires=requirements,
